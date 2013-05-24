@@ -208,7 +208,7 @@ def convex2d_to_traps( vertices ) :
 
 """ and integrate! """
 
-def lint_trap( c1, c2, d, a, b, m1, b1, m2, b2 ) :
+def lint_trap( cx, cy, d, a, b, m1, b1, m2, b2 ) :
     """
     computes the integral :
         \int_{x=a}^b
@@ -223,12 +223,14 @@ def lint_trap( c1, c2, d, a, b, m1, b1, m2, b2 ) :
     fx = np.array( [ m1, b1 ] )
     gx = np.array( [ m2, b2 ] )
     # representation of the part of f which is a polynomial in x [alone]
-    px = np.array( [ c1, d ] )
+    px = np.array( [ cx, d ] )
     
     # result of inner integral of c2*y
-    term1 = .5 * c2 * ( sp.polymul( gx, gx ) - sp.polymul( fx, fx ) )
+    term1 = .5 * cy * sp.polysub( sp.polymul( gx, gx ), sp.polymul( fx, fx ) )
     term2 = sp.polymul( px, gx - fx )
     Px = sp.polyint( sp.polyadd( term1, term2 ) )
+    
+    #print fx, gx, px, term1, term2, term1+term2, Px
     return sp.polyval( Px, b ) - sp.polyval( Px, a )
 
 
@@ -236,7 +238,7 @@ def lint_trap( c1, c2, d, a, b, m1, b1, m2, b2 ) :
 
 def integrate_over_convexhull( c, d, vertices ) :
     assert len( c ) == 2
-    c1, c2 = c
+    cx, cy = c
     
     upper = upperHull( vertices, strict=True )
     lower = lowerHull( vertices, strict=True )
@@ -246,7 +248,7 @@ def integrate_over_convexhull( c, d, vertices ) :
     for (a,b), (ln_upper,ln_lower) in traps.iteritems() :
         m1, b1 = ln_lower
         m2, b2 = ln_upper
-        total += lint_trap( c1, c2, d, a, b, m1, b1, m2, b2 )
+        total += lint_trap( cx, cy, d, a, b, m1, b1, m2, b2 )
         
     return total
 
