@@ -3,6 +3,9 @@ import itertools
 import numpy as np
 import scipy as sp
 
+DEFAULT_SENSITIVITY = None
+WIDTH_THRESHOLD = .0001
+
 
 class test :
     def __init__(self) :
@@ -20,12 +23,14 @@ class test :
         
 
 """ first step is to enumerate vertices of the enclosing polygon """
-def enumerate_vertices_2d( A, b ) :
+def enumerate_vertices_2d( A, b, **kwargs ) :
     """
     an inefficient implementation of 2-dimensional vertex enumeration.
     simply enumerates all bases and checks feasibility.
     returns a set of points as tuples.
     """
+    sensitivity = kwargs.get( 'sensitivity', DEFAULT_SENSITIVITY )
+    
     # assume bounded, don't bother to check
     rows, cols = A.shape
     assert cols == 2
@@ -41,6 +46,9 @@ def enumerate_vertices_2d( A, b ) :
         if np.linalg.det( AB ) == 0 : continue    # no finite intersection
         xB = np.linalg.solve( AB, bB ) ; xB = tuple(xB)
         
+        """
+        This can cause very small trapezoids, which introduce numerical issues
+        """        
         if np.all( np.dot( A, xB ) <= b ) :
             vertices.add( xB )
             
@@ -174,18 +182,22 @@ def _intervals_on_xaxis( P ) :
     return res
 
 
-def intersectIntervals( arrgt1, arrgt2, combine=None ) :
+def intersectIntervals( arrgt1, arrgt2, combine=None, **kwargs ) :
     """
         accepts two dictionaries, and a combining function
         computes the overlay of the two arrangements, issues the combine function on the values to produce a new arrangement
     """
     overlay = {}
+    width_threshold = kwargs.get( 'width_threshold', WIDTH_THRESHOLD )
+    
     # ( not super efficient )
     for (a1,b1), val1 in arrgt1.iteritems() :
         for (a2,b2), val2 in arrgt2.iteritems() :
             a = max( a1, a2 )
             b = min( b1, b2 )
-            if a < b :
+            
+            # ensure the trapezoid exists and has sufficient width
+            if b > a + width_threshold :
                 val = combine( val1, val2 ) 
                 overlay[ (a,b) ] = val
                 
