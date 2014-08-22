@@ -3,7 +3,7 @@ import itertools
 import numpy as np
 import scipy as sp
 
-DEFAULT_SENSITIVITY = None
+DEFAULT_SENSITIVITY = 10e-12        # vertex inclusion buffer
 WIDTH_THRESHOLD = .0001
 
 
@@ -31,12 +31,13 @@ def enumerate_vertices_2d( A, b, **kwargs ) :
     """
     sensitivity = kwargs.get( 'sensitivity', DEFAULT_SENSITIVITY )
     
-    # assume bounded, don't bother to check
+    # assume a bounded polytope, don't bother to check
+    
     rows, cols = A.shape
     assert cols == 2
     assert len( b ) == rows
 
-    vertices = set()    # hopefully takes care of degenerate cases
+    vertices = set()    # hopefully takes care of degenerate cases (honestly, not likely)
 
     E = range( rows )
     for i, j in itertools.combinations( E, 2 ) :
@@ -48,8 +49,10 @@ def enumerate_vertices_2d( A, b, **kwargs ) :
         
         """
         This can cause very small trapezoids, which introduce numerical issues
+        (The algorithm was rejecting some vertices due to numerical issues;
+        trying to fix that with a small sensitivity buffer)
         """        
-        if np.all( np.dot( A, xB ) <= b ) :
+        if np.all( np.dot( A, xB ) <= b + sensitivity ) :
             vertices.add( xB )
             
     return vertices
