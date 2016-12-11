@@ -7,6 +7,7 @@ setup(
 	author = "Kyle Treleaven",
 	author_email = "ktreleav@gmail.com",
 	version = "0.0.0",
+	install_requires = ['numpy', 'scipy']
 	packages = find_packages(),
 	namespace_packages = [ 'setiptah', ],
 )
