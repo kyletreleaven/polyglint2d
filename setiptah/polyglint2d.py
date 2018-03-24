@@ -60,6 +60,46 @@ def enumerate_vertices_2d( A, b, **kwargs ) :
 
 
 
+
+""" also, just for fun, the opposite operation """
+
+
+def vertices_to_hull_inequality( vertices ) :
+    hull = convexHull( vertices )      # obtains a clock-wise circulation
+    
+    #print len(vertices), len(hull)
+    #assert len(hull) == len(vertices)
+    
+    pairs = zip( hull, hull[1:] + hull[:1] )
+    n = len(pairs)
+    
+    A = np.zeros( (n,2) )
+    b = np.zeros(n)
+    
+    for k, (p,q) in enumerate( pairs ) :
+        xp,yp = p
+        xq,yq = q
+        
+        theta = np.arctan2( yq-yp, xq-xp )
+        u = [ -np.sin(theta), np.cos(theta) ]   # rotate 90deg to point "away"
+        A[k,:] = u
+        
+        bb = np.dot( p, u )
+        #print np.dot( q, u ) - bb
+        #assert abs( np.dot( q, u ) - bb ) < 10e-10
+        b[k] = bb
+        
+    return A, b
+        
+
+
+
+
+
+
+
+
+
 """ next step is to compute upper- and lower- hull traversals """
 
 """convexhull.py
@@ -216,7 +256,7 @@ def convex2d_to_traps( vertices ) :
     upper = upperHull( vertices, strict=True )
     lower = lowerHull( vertices, strict=True )
     return trapezoids2d( upper, lower )
-    
+
 
 
 
