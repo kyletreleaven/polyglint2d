@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "setiptah-polyglint2d"
+description = "A small utility for integration of linear functions over interiors of polygons in 2d"
+authors = [
+  {name = "Kyle Treleaven", email = "ktreleav@gmail.com"},
+]
+dynamic = ["version"]
+dependencies = [
+    "numpy",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ipython",
+    "notebook",
+    "matplotlib",
+]
+test = [
+    "pytest",
+    "pytest-coverage",
+]
+package = [
+    "black",
+]
