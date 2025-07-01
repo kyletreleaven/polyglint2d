@@ -23,6 +23,15 @@ test = [
     "pytest",
     "pytest-coverage",
 ]
-package = [
+format = [
     "black",
+]
+docs = [
+    "setiptah-polyglint2d[notebook]",
+    "nbconvert",
+    "mkdocs-material",
+    "mkdocs-terminal",
+    "mkdocs-rtd-dropdown",
+    "mkdocstrings[python]",
+    "pymdown-extensions",
 ]

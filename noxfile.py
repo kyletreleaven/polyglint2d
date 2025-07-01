@@ -23,7 +23,7 @@ def test(session):
 def format(session):
     try:
         toml = nox.project.load_toml("pyproject.toml")
-        package_deps = toml["project"]["optional-dependencies"]["package"]
+        package_deps = toml["project"]["optional-dependencies"]["format"]
 
     except:
         import json
@@ -87,28 +87,8 @@ def notebook(session):
 
 @nox.session
 def docs(session):
-    """
-
-    Configuring Sphinx for document generation seems like a travesty.
-
-    https://eikonomega.medium.com/getting-started-with-sphinx-autodoc-part-1-2cebbbca5365
-    https://www.youtube.com/watch?v=KKfQnxQBoWE
-    https://stackoverflow.com/questions/2701998/automatically-document-all-modules-recursively-with-sphinx-autodoc/62613202#62613202
-
-    """
-    session.install("-e", ".")
-
-    try:
-        toml = nox.project.load_toml("pyproject.toml")
-        pkg_deps = toml["project"]["optional-dependencies"]["package"]
-
-    except:
-        import json
-        print(json.dumps(toml, indent=2))
-        raise
-
-    session.install(*pkg_deps)
-    session.run("python", "-m", "sphinx_autobuild", "docs", "html")
+    session.install("-e", ".[docs]")
+    session.run("mkdocs", "build")
 
 
 @nox.session
@@ -124,17 +104,20 @@ def nbenv(session):
     # Then, for version control..
 
     # Note quite enough, leaves the output metadata.
-    jupyter nbconvert --clear-output --inplace docs/basic-demo.ipynb
+    nox -r --session nbenv -- \
+        jupyter nbconvert --clear-output --inplace docs/visualization.ipynb
 
-    # Clear output _and_ metadata!
-    jupyter nbconvert --inplace \
-        --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True \
-        docs/basic-demo.ipynb
+    nox -r --session nbenv -- \
+        jupyter nbconvert --inplace \
+        --ClearOutputPreprocessor.enabled=True \
+        demo/visualization.ipynb
+
+    --ClearMetadataPreprocessor.enabled=True \
 
     """
     session.install("-e", ".")
     toml = nox.project.load_toml("pyproject.toml")
-    pkg_deps = toml["project"]["optional-dependencies"]["package"]
+    pkg_deps = toml["project"]["optional-dependencies"]["docs"]
     session.install(*pkg_deps)
     session.run(*session.posargs)
     # session.run("make", "-C", "docs", "html")
