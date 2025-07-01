@@ -1,8 +1,44 @@
+"""polyglint2d: Computing two-dimensional bounded linear integrals."""
+
+"""
+
+MIT License
+
+Copyright (c) 2025 Kyle Treleaven
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+"""
 import itertools
 import numpy as np
+from numbers import Real
+from typing import Collection, Tuple
+from . import _geom
+
+__all__ = [
+    "integrate",
+    "integrate_over_convexhull",
+    "lint_trap",
+    "enumerate_vertices_2d",
+]
 
 DEFAULT_SENSITIVITY = 10e-12  # vertex inclusion buffer
-WIDTH_THRESHOLD = 0.0001
 
 
 polyval = np.polyval
@@ -12,24 +48,64 @@ polymul = np.polymul
 polyint = np.polyint
 
 
-def integrate(c, d, A, b):
-    """
-    this routine computes the integral:
-        \\int_{ Ax <= b } c'x dx,
-    i.e., the integral of the linear function c'x, over the 2-dimensional polygon described by Ax <= b;
-    (assumes that the polygon is closed.)
+def integrate(c: np.array, d: Real, A: np.array, b: np.array) -> Real:
+    r"""Compute the integral (2D) of a linear function over a convex polygon:
+
+    $$\int_{ Ax \leq b } c'x \, {\rm d} x,$$
+
+    i.e., the integral of the linear function $c'x$, over the 2-dimensional polygon described by $Ax \leq b$.
+    (The method assumes that the polygon is closed.)
+
+    Args:
+        c: Integrand coefficients; ${\mathbb R}^2$
+        d: Integrand bias; ${\mathbb R}$
+        A: Constraint matrix; ${\mathbb R}^{n \times 2}$
+        b: Constraint vector; ${\mathbb R}^n$
+
+    Returns:
+        value: The value of the integral.
+
+    Example:
+
+    Area of the triangle $x + y \leq 1$, $x, y \geq 0$:
+
+        >>> Ab = np.array([[1, 1, 1], [-1, 0, 0], [0, -1, 0]])
+        >>> A, b = Ab[:, :-1], Ab[:, -1]
+        >>> integrate([0, 0], 1, A, b.T)
+        np.float64(0.5)
+
     """
     vertices = enumerate_vertices_2d(A, b)
     return integrate_over_convexhull(c, d, vertices)
 
 
-def integrate_over_convexhull(c, d, vertices):
+def integrate_over_convexhull(c: np.array, d: Real, vertices: Collection) -> Real:
+    r"""Compute the 2D integral of a linear function over the convex hull of given points.
+
+    Args:
+        c: Integrand coefficients; ${\mathbb R}^2$
+        d: Integrand bias; ${\mathbb R}$
+        vertices: Collection of vertices; [${\mathbb R}^2$]
+
+    Returns:
+        value: The value of the integral.
+
+    Example:
+
+    Calculating the volume contained in $0 \leq x, y \leq 1$,
+    and between the $z=0$ and $z=x$ planes:
+
+        >>> corners = [(0, 0), (0, 1), (1, 0), (1, 1)]
+        >>> integrate_over_convexhull([1, 0], 0, corners)
+        np.float64(0.5)
+
+    """
     assert len(c) == 2
     cx, cy = c
 
-    upper = upperHull(vertices, strict=True)
-    lower = lowerHull(vertices, strict=True)
-    traps = trapezoids2d(upper, lower)
+    upper = _geom.upperHull(vertices, strict=True)
+    lower = _geom.lowerHull(vertices, strict=True)
+    traps = _geom.trapezoids2d(upper, lower)
 
     total = 0.0
     for (a, b), (ln_upper, ln_lower) in traps.items():
@@ -40,21 +116,70 @@ def integrate_over_convexhull(c, d, vertices):
     return total
 
 
-def enumerate_vertices_2d(A, b, **kwargs):
+def lint_trap(cx, cy, d, a, b, m1, b1, m2, b2) -> Real:
+    r"""Compute the integral of a linear function over a horizontal trapezoid:
+
+    $$\int_{x=a}^b \int_{y=m_1 x + b_1}^{m_2 x + b_2} ( c_x x + c_y y + d ) \, {\rm d}y \, {\rm d}x.$$
+
+    The closed form given by Wolfram Alpha is surprisingly ugly, so
+    this method uses a semi-symbolic approach:
+    It uses `numpy.{polyint, polymul}` to evaluate intermediate polynomials.
+
+    Returns:
+        value: The value of the integral.
+
+    Examples:
+        >>> lint_trap(0, 0, 1, 0, 1, 0, 0, -1, 1)
+        np.float64(0.5)
+
     """
-    an inefficient implementation of 2-dimensional vertex enumeration.
-    simply enumerates all bases and checks feasibility.
-    returns a set of points as tuples.
+    # polynomial representations (in variable x) of the inner integral bounds
+    fx = np.array([m1, b1])
+    gx = np.array([m2, b2])
+    # representation of the part of f which is a polynomial in x [alone]
+    px = np.array([cx, d])
+
+    # result of inner integral of c2*y
+    term1 = 0.5 * cy * polysub(polymul(gx, gx), polymul(fx, fx))
+    term2 = polymul(px, gx - fx)
+    Px = polyint(polyadd(term1, term2))
+
+    # print fx, gx, px, term1, term2, term1+term2, Px
+    return polyval(Px, b) - polyval(Px, a)
+
+
+def enumerate_vertices_2d(A: np.array, b: np.array, **kwargs) -> Tuple:
+    r"""Enumerate the vertices of $Ax \leq b$.
+
+    This is currently an inefficient implementation of 2-dimensional vertex enumeration.
+    It simply enumerates all bases (row pairs) and checks for containment/feasibility.
+
+    (Assumes a bounded polygon, and doesn't bother to check.)
+
+    Args:
+        A: Constraint matrix; ${\mathbb R}^{n \times 2}$
+        b: Constraint vector; ${\mathbb R}^n$
+
+    Returns:
+        vertices: The vertices of the convex region bounded.
+
+    Example:
+
+    Enumerate the vertices of the unit square.
+
+        >>> Ab = np.array([[-1, 0, 0], [0, -1, 0], [1, 0, 1], [0, 1, 1]])
+        >>> A, b = Ab[:, :-1], Ab[:, -1]
+        >>> set(enumerate_vertices_2d(A, b)) == set((x, y) for x in [0, 1] for y in [0, 1])
+        True
+
     """
     sensitivity = kwargs.get("sensitivity", DEFAULT_SENSITIVITY)
-
-    # assume a bounded polytope, don't bother to check
 
     rows, cols = A.shape
     assert cols == 2
     assert len(b) == rows
 
-    vertices = set()  # hopefully takes care of degenerate cases (honestly, not likely)
+    vertices = set()  # hopefully takes care of degenerate cases (but probably doesn't)
 
     E = range(rows)
     for i, j in itertools.combinations(E, 2):
@@ -77,44 +202,8 @@ def enumerate_vertices_2d(A, b, **kwargs):
     return vertices
 
 
-def lint_trap(cx, cy, d, a, b, m1, b1, m2, b2):
-    """
-
-    computes the integral :
-    ```
-        \\int_{x=a}^b
-            int_{y=m1*x+b1}^{m2*x+b2}
-                f(x,y) = ( c1*x + c2*y + d )
-            dy
-        dx
-    ```
-
-    using numpy polyint / polymul / polyval;
-    the closed form given by Wolfram Alpha is surprisingly ugly, so I've broken the integral down into stages
-
-    Examples:
-
-    >>> lint_trap(0, 0, 1, 0, 1, 0, 0, -1, 1)
-    np.float64(0.5)
-
-    """
-    # polynomial representations (in variable x) of the inner integral bounds
-    fx = np.array([m1, b1])
-    gx = np.array([m2, b2])
-    # representation of the part of f which is a polynomial in x [alone]
-    px = np.array([cx, d])
-
-    # result of inner integral of c2*y
-    term1 = 0.5 * cy * polysub(polymul(gx, gx), polymul(fx, fx))
-    term2 = polymul(px, gx - fx)
-    Px = polyint(polyadd(term1, term2))
-
-    # print fx, gx, px, term1, term2, term1+term2, Px
-    return polyval(Px, b) - polyval(Px, a)
-
-
 def vertices_to_hull_inequality(vertices):
-    hull = convexHull(vertices)  # obtains a clock-wise circulation
+    hull = _geom.convexHull(vertices)  # obtains a clock-wise circulation
 
     # print len(vertices), len(hull)
     # assert len(hull) == len(vertices)
@@ -139,164 +228,3 @@ def vertices_to_hull_inequality(vertices):
         b[k] = bb
 
     return A, b
-
-
-def convex2d_to_traps(vertices):
-    upper = upperHull(vertices, strict=True)
-    lower = lowerHull(vertices, strict=True)
-    return trapezoids2d(upper, lower)
-
-
-"""convexhull.py
-
-Calculate the convex hull of a set of n 2D-points in O(n log n) time.  
-Taken from Berg et al., Computational Geometry, Springer-Verlag, 1997.
-Prints output as EPS file.
-
-When run from the command line it generates a random set of points
-inside a square of given length and finds the convex hull for those,
-printing the result as an EPS file.
-
-Usage:
-
-    convexhull.py <numPoints> <squareLength> <outFile>
-
-Dinu C. Gherman
-"""
-
-
-def _myDet(p, q, r):
-    """Calc. determinant of a special matrix with three 2D points.
-
-    The sign, "-" or "+", determines the side, right or left,
-    respectivly, on which the point r lies, when measured against
-    a directed vector from p to q.
-    """
-    # We use Sarrus' Rule to calculate the determinant.
-    # (could also use the Numeric package...)
-    sum1 = q[0] * r[1] + p[0] * q[1] + r[0] * p[1]
-    sum2 = q[0] * p[1] + r[0] * q[1] + p[0] * r[1]
-    return sum1 - sum2
-
-
-def _isRightTurn(p, q, r):
-    "Do the vectors pq:qr form a right turn, or not?"
-    assert p != q and q != r and p != r
-
-    if _myDet(p, q, r) < 0:
-        return True
-    else:
-        return False
-
-
-def upperHull(P, strict=False):
-    # Get a local list copy of the points and sort them lexically.
-    points = sorted(P)
-
-    # Build upper half of the hull
-    upper = points[:2]
-    for p in points[2:]:
-        upper.append(p)
-        while len(upper) > 2 and not _isRightTurn(*upper[-3:]):
-            del upper[-2]
-
-    if not strict:
-        res = upper
-
-    # extra logic to compute "strict" upper hull,
-    # which throws away vertical segments on the left or right boundaries
-    else:
-        res = []
-        most_recent_q = None
-        pairs = zip(upper[:-1], upper[1:])
-        for p, q in pairs:
-            xp, yp = p
-            xq, yq = q
-            if xq == xp:
-                if yp < yq:  # on the left side
-                    continue  # i.e., throw away p, pick up q on the next iteration
-                if yp > yq:  # on the right side, I DON'T THINK THIS CAN EVEN HAPPEN
-                    break  # don't want this segment, so stop, p is covered (from last iteration) by most_recent_q
-                else:
-                    raise "duplicate point detected"
-
-            # normal operation
-            res.append(p)
-            most_recent_q = q
-        if most_recent_q is not None:
-            res.append(most_recent_q)
-
-    return res
-
-
-def lowerHull(P, strict=False, clockwise=False):  # still left-to-right
-    """cheating a little bit here, rotating by 180deg, using upper hull, de-rotating"""
-    Q = [(-x, -y) for x, y in P]
-    upper = upperHull(Q, strict=strict)
-    lower = [(-x, -y) for x, y in upper]
-    if not clockwise:
-        lower.reverse()
-    return lower
-
-
-def convexHull(P):
-    upper = upperHull(P)
-    lower = lowerHull(P, strict=False, clockwise=True)
-    return upper + lower[1:-1]
-
-
-def _getLineParams(p, q):
-    """
-
-    >>> _getLineParams((-1, -2), (1, 2))
-    (2.0, 0.0)
-
-    """
-    xp, yp = p
-    xq, yq = q
-    assert xp != xq
-    m = float(yq - yp) / (xq - xp)
-    b = yp - m * xp
-    return m, b
-
-
-def _intervals_on_xaxis(P):
-    points = sorted(P)
-
-    res = {}
-
-    intervals = zip(points[:-1], points[1:])
-    for p, q in intervals:
-        xp, yp = p
-        xq, yq = q
-        res[(xp, xq)] = _getLineParams(p, q)
-
-    return res
-
-
-def intersectIntervals(arrgt1, arrgt2, combine=None, **kwargs):
-    """
-    accepts two dictionaries, and a combining function
-    computes the overlay of the two arrangements, issues the combine function on the values to produce a new arrangement
-    """
-    overlay = {}
-    width_threshold = kwargs.get("width_threshold", WIDTH_THRESHOLD)
-
-    # ( not super efficient )
-    for (a1, b1), val1 in arrgt1.items():
-        for (a2, b2), val2 in arrgt2.items():
-            a = max(a1, a2)
-            b = min(b1, b2)
-
-            # ensure the trapezoid exists and has sufficient width
-            if b > a + width_threshold:
-                val = combine(val1, val2)
-                overlay[(a, b)] = val
-
-    return overlay
-
-
-def trapezoids2d(upper, lower):
-    upper_arrgt = _intervals_on_xaxis(upper)
-    lower_arrgt = _intervals_on_xaxis(lower)
-    return intersectIntervals(upper_arrgt, lower_arrgt, lambda x, y: (x, y))
