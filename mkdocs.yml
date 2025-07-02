@@ -22,10 +22,10 @@ plugins:
             extra:
               source_link_format: "https://github.com/kyletreleaven/polyglint2d/blob/master/{path}#L{lineno}"
 
-
 nav:
   - Home: index.md
   - API: api.md
+  - GitHub: https://github.com/kyletreleaven/polyglint2d
 
 markdown_extensions:
   - pymdownx.arithmatex:
