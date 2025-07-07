@@ -20,6 +20,14 @@ def test(session):
 
 
 @nox.session
+def build(session):
+    toml = nox.project.load_toml("pyproject.toml")
+    build_deps = toml["project"]["optional-dependencies"]["build"]
+    session.install(*build_deps)  # but not the package itself...
+    session.run("python", "-m", "build_util", *(session.posargs or []))  # posargs for test filtering
+
+
+@nox.session
 def format(session):
     try:
         toml = nox.project.load_toml("pyproject.toml")
