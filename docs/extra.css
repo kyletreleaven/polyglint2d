@@ -1,0 +1,9 @@
+/* Make the main content wider */
+:root {
+    --page-width: 100em;  /* ~1280px */
+}
+
+aside {
+    max-width: 10em !important; /* force it if needed */
+    flex-shrink: 1;             /* allow shrinking */
+}

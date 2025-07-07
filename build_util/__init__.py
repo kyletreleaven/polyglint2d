@@ -26,11 +26,11 @@ class vis_notebook:
     notebook_file = PROJECT_DIR / "demo" / "visualization.ipynb"
 
     output_dir = DOCS_DIR / "notebooks"
-    output_file = output_dir / "visualization.md"
+    output_file = output_dir / "visualization.html"
 
     def create(self):
         noxrun("nbenv", [
-            *"jupyter nbconvert --to markdown --execute".split(),
+            *"jupyter nbconvert --to html --execute".split(),
             "--output", self.output_file,
             self.notebook_file
         ])
