@@ -19,8 +19,9 @@ build = [
 ]
 dev = [
     "ipython",
-    "notebook",
     "matplotlib",
+    "notebook",
+    "ipykernel",
 ]
 test = [
     "pytest",
@@ -30,7 +31,7 @@ format = [
     "black",
 ]
 docs = [
-    "setiptah-polyglint2d[notebook]",
+    "setiptah-polyglint2d[dev]",
     "nbconvert",
     "mkdocs-material",
     "mkdocs-terminal",

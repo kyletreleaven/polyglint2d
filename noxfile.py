@@ -123,4 +123,10 @@ def nbenv(session):
     toml = nox.project.load_toml("pyproject.toml")
     pkg_deps = toml["project"]["optional-dependencies"]["docs"]
     session.install(*pkg_deps)
+    display_name = "Python (nbconvert env)"
+    session.run(
+        *"python -m ipykernel install --user --name nbconvert".split(),
+        "--display-name", display_name
+    )
+
     session.run(*session.posargs)

@@ -45,6 +45,7 @@ class demo_notebook:
         noxrun("nbenv", [
             *"jupyter nbconvert --to html --execute".split(),
             # "--show-config-json",
+            "--ExecutePreprocessor.kernel_name=nbconvert",  # same as in noxfile; not python3, so we can verify locally
             "--output", self.output_file,
             self.notebook_file
         ])
