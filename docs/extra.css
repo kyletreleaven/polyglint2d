@@ -1,9 +1,10 @@
 /* Make the main content wider */
 :root {
-    --page-width: 100em;  /* ~1280px */
+    --page-width: 80em;
 }
 
-aside {
-    max-width: 10em !important; /* force it if needed */
-    flex-shrink: 1;             /* allow shrinking */
+@media only screen and (min-width: 70em) {
+  .terminal-mkdocs-main-grid {
+    grid-template-columns: 12em 1fr !important;
+  }
 }
