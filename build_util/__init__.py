@@ -17,16 +17,17 @@ def noxrun(session, args_, *args, **kwargs):
 
 
 @singleton
-class vis_notebook:
+class demo_notebook:
     """A nice notebook.
 
     https://nbconvert.readthedocs.io/en/latest/usage.html#
 
     """
-    notebook_file = PROJECT_DIR / "demo" / "visualization.ipynb"
+    DIR = PROJECT_DIR / "demo"
+    notebook_file =  DIR / "demo.ipynb"
 
     output_dir = DOCS_DIR / "notebooks"
-    output_file = output_dir / "visualization.html"
+    output_file = output_dir / "demo.html"
 
     def create(self):
         noxrun("nbenv", [

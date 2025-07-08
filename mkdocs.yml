@@ -25,7 +25,7 @@ plugins:
 nav:
   - Home: index.md
   - Notebooks:
-    - Visualization: notebooks/visualization.md
+    - Demo: notebooks/demo.md
   - API: api.md
   - GitHub: https://github.com/kyletreleaven/polyglint2d
 
