@@ -5,6 +5,7 @@ nox.options.default_venv_backend = "uv"
 
 @nox.session
 def test(session):
+    """Runs the unit tests."""
     try:
         toml = nox.project.load_toml("pyproject.toml")
         deps = toml["project"]["dependencies"]
@@ -21,6 +22,11 @@ def test(session):
 
 @nox.session
 def build(session):
+    """Minimal session to run build commands.
+
+    e.g., `nox -r -s build -- {{target}}`
+
+    """
     toml = nox.project.load_toml("pyproject.toml")
     build_deps = toml["project"]["optional-dependencies"]["build"]
     session.install(*build_deps)  # but not the package itself...
@@ -44,6 +50,7 @@ def format(session):
 
 @nox.session
 def dev(session):
+    """Opens an IPython session with the package installed."""
     session.install("-e", ".")
 
     try:
@@ -78,6 +85,7 @@ def run(session):
 
 @nox.session
 def notebook(session):
+    """A session that hosts the repo's notebooks for development."""
     session.install("-e", ".")
 
     try:
@@ -95,32 +103,20 @@ def notebook(session):
 
 @nox.session
 def docs(session):
+    """Compiles the mkdocs documentation.
+
+    See `build_util` for dependencies.
+
+    """
     session.install("-e", ".[docs]")
     session.run("mkdocs", "build")
 
 
 @nox.session
 def nbenv(session):
-    """
+    """Use this session to run nbconvert utils.
 
     # https://nbconvert.readthedocs.io/en/latest/usage.html#notebook-and-preprocessors
-
-    e.g.,
-    # Execute the notebook in-place, i.e., as implicit test step for doc prep!
-    jupyter nbconvert --execute --inplace docs/basic-demo.ipynb
-
-    # Then, for version control..
-
-    # Note quite enough, leaves the output metadata.
-    nox -r --session nbenv -- \
-        jupyter nbconvert --clear-output --inplace docs/visualization.ipynb
-
-    nox -r --session nbenv -- \
-        jupyter nbconvert --inplace \
-        --ClearOutputPreprocessor.enabled=True \
-        demo/visualization.ipynb
-
-    --ClearMetadataPreprocessor.enabled=True \
 
     """
     session.install("-e", ".")
@@ -128,4 +124,3 @@ def nbenv(session):
     pkg_deps = toml["project"]["optional-dependencies"]["docs"]
     session.install(*pkg_deps)
     session.run(*session.posargs)
-    # session.run("make", "-C", "docs", "html")
