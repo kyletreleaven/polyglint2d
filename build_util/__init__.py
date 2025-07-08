@@ -17,6 +17,17 @@ def noxrun(session, args_, *args, **kwargs):
 
 
 @singleton
+class docs:
+    """Compiles documentation including a Jupyter notebook."""
+
+    def create(self):
+
+        demo_notebook.create()  # TODO: Skip if it already exists.
+
+        noxrun("docs", [])
+
+
+@singleton
 class demo_notebook:
     """A nice notebook.
 
@@ -26,12 +37,20 @@ class demo_notebook:
     DIR = PROJECT_DIR / "demo"
     notebook_file =  DIR / "demo.ipynb"
 
-    output_dir = DOCS_DIR / "notebooks"
-    output_file = output_dir / "demo.html"
+    notebooks_dir = DOCS_DIR / "notebooks"
+    images_dir = notebooks_dir / "images"
+    output_file = notebooks_dir / "demo.html"
 
     def create(self):
+
+        preprocs = ["build_util.extract_notebook_gif.ExtractGifPreprocessor"]
+        incl_preproc = f"--Exporter.preprocessors={repr(preprocs)}"
+
         noxrun("nbenv", [
             *"jupyter nbconvert --to html --execute".split(),
+            # "--show-config-json",
+            incl_preproc,
+            "--output-dir", self.notebooks_dir,
             "--output", self.output_file,
             self.notebook_file
         ])
