@@ -19,6 +19,7 @@ build = [
 ]
 dev = [
     "ipython",
+    "scipy",
     "matplotlib",
     "notebook",
     "ipykernel",
