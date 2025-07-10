@@ -1,3 +1,3 @@
 # polyglint2d
 
-A small utility for intergrating linear functions over interiors of polygons in 2D.
+A small utility for integrating linear functions over convex polygonal regions in 2D.
